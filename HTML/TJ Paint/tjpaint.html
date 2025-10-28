@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TJ Paint</title>
+  <style>
+    .menubar {
+      background-color: #111111;
+      position: sticky;
+      top: 0;
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      margin: 2px;
+      padding: 2px;
+      justify-content: flex-start; /* fixed from flex-left */
+      align-items: center;
+      gap: 10px;
+    }
+
+    .menubar-dropdown {
+      background-color: #222222;
+      color: #cccccc;
+      width: 10%;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    .menubar-dropdown p {
+      text-align: center;
+      margin: 0;
+      padding: 5px 0;
+    }
+
+    .dropdown-options {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background-color: #222222;
+      z-index: 10;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+    
+    #new-screen {
+        position: absolute;
+        left: 300px;
+        top: 300px;
+        display: none;
+        background-color: gray;
+        padding: 5px;
+        margin: 2px;
+    }
+
+    .menubar-dropdown:hover .dropdown-options {
+      display: block;
+    }
+
+    .dropdown-options button {
+      width: 100%;
+      background-color: #555555;
+      color: #dddddd;
+      border: none;
+      padding: 8px 5px;
+      cursor: pointer;
+    }
+
+    .dropdown-options button:hover {
+      background-color: #777777;
+    }
+
+    .menubar h1 {
+      font: 20px Verdana;
+      color: white;
+      margin: 0 10px 0 0;
+      user-select: none;
+    }
+
+    body,
+    html {
+      background-color: black;
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: Verdana, sans-serif;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: row;
+      height: 90vh;
+      width: 100%;
+    }
+
+    #edit-settings,
+    #brush-settings {
+      border: 2px solid white;
+      background-color: #bbbbbb;
+      color: black; /* changed from red to black for better readability */
+      width: 150px; /* fixed width so they don't collapse */
+      padding: 10px;
+      box-sizing: border-box;
+      user-select: none;
+      font-size: 14px;
+    }
+
+    #edit-settings {
+      margin-right: 10px;
+    }
+
+    #brush-settings {
+      margin-left: 10px;
+    }
+
+    /* Make inputs full width and spaced */
+    #brush-settings input[type='number'] {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+      font-size: 14px;
+      padding: 3px;
+    }
+
+    canvas {
+      /* keep canvas at native size, no stretching */
+      image-rendering: pixelated;
+      background-color: #222;
+      cursor: crosshair;
+      /* Add margin so canvas isn't jammed between sidebars */
+      margin: 0 10px;
+    }
+  </style>
+</head>
+<body>
+  <header class="menubar">
+    <h1>TJ Paint</h1>
+    <div class="menubar-dropdown" id="file">
+      <p>File</p>
+      <div class="dropdown-options">
+        <button id="new">New</button>
+        <button id="save">Save</button>
+        <button id="saveas">Save As</button>
+        <button id="open">Open</button>
+      </div>
+    </div>
+    <div class="menubar-dropdown" id="edit">
+      <p>Edit</p>
+      <div class="dropdown-options">
+        <button id="newshape">New Shape</button>
+        <button id="cut">Cut</button>
+        <button id="copy">Copy</button>
+        <button id="paste">Paste</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div id="edit-settings">
+      <!-- Edit settings content here -->
+      Edit Settings
+    </div>
+
+    <canvas id="c" width="100" height="100"></canvas>
+
+    <div id="brush-settings">
+      <!-- Brush settings content here -->
+      Brush Settings
+
+      <p>Red Value (0-255)</p>
+      <input
+        type="number"
+        id="rin"
+        placeholder="0-255"
+        min="0"
+        max="255"
+        step="1"
+        inputmode="numeric"
+      />
+
+      <p>Green Value (0-255)</p>
+      <input
+        type="number"
+        id="gin"
+        placeholder="0-255"
+        min="0"
+        max="255"
+        step="1"
+        inputmode="numeric"
+      />
+
+      <p>Blue Value (0-255)</p>
+      <input
+        type="number"
+        id="bin"
+        placeholder="0-255"
+        min="0"
+        max="255"
+        step="1"
+        inputmode="numeric"
+      />
+
+      <p>Alpha Value (0-1)</p>
+      <input
+        type="number"
+        id="ain"
+        placeholder="0-1"
+        min="0"
+        max="1"
+        step="any"
+        inputmode="decimal"
+      />
+      
+      <p> Size </p>
+      <input 
+      type="number"
+      id="sin"
+      placeholder="3"
+      min="0"
+      max="500"
+      step="any"
+      inputmode="numeric"
+      />
+
+      <button id="brush-update"> Update </button>
+    </div>
+  </div>
+  
+  <div id="new-screen">
+      <h2> Enter Height and Width </h2>
+      <p> Width </p>
+      <input type="number" id="winput">
+      <p> Height </p>
+      <input type="number" id="hinput">
+      
+      <button id="confirm-new">Create</button>
+      <button onclick="document.getElementById('new-screen').style.display = 'none';"> X </button>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

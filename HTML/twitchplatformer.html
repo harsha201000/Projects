@@ -1,0 +1,344 @@
+<html>
+    <head>
+        <title>Twitch Platformer</title>
+
+        <style>
+            #chat {
+                background-color: #c9c9c9;
+                border: 2px Solid;
+                border-radius: 5px;
+                overflow-y: scroll;
+                height: 100%;
+                scroll-behavior: auto;
+            }
+
+            .message {
+                color: purple;
+                background-color: #b8b8b8;
+                border-radius: 5px;
+                height: 50px;
+            }
+
+            #container {
+                width: 75%;
+                height: 75%;
+                display: flex;
+                flex-direction: row;
+            }
+
+            body, html {
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="container">
+        <canvas id="c" width="800" height="600" style="border: 2px solid"></canvas>
+        <div id="chat"></div>
+        </div>
+        <script>
+
+
+            const c = document.getElementById("c").getContext("2d");
+            const chat = document.getElementById("chat");
+
+            const DRAG = 0.5;
+            const GRAVITY = 1;
+            const ACCELERATION = 10;
+
+            const TILE_SIZE = 64;
+
+            var camera = {
+                x: 0,
+                y: 0,
+                velX: 0,
+                velY: 0,
+                targetX: 0,
+                targetY: 0,
+                screenWidth: 800,
+                screenHeight: 600
+            }
+
+            var map = [
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,1,0,1,0,1,0,1,0,0,1,0,0,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0],
+                [1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,0,1,1,2,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0],
+                [1,1,1,0,0,0,1,1,1,0,0,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
+            ]
+
+            var tiles = [];
+
+            for(var i = 0; i < map.length; i++) {
+                for(var j = 0; j < map[0].length; j++) {
+                    tiles.push({
+                        x: j * TILE_SIZE,
+                        y: i * TILE_SIZE,
+                        type: map[i][j]
+                    })
+                }
+            }
+
+            var player = {
+                x: 0,
+                y: 0,
+                width: 32,
+                height: 32,
+                velX: 0,
+                velY: 0,
+                grounded: false
+            }
+
+            var controller = {
+                up: false,
+                down: false,
+                left: false,
+                right: false
+            }
+
+            var chatState = 0;
+            var stateTimer = 0;
+            /*
+            0 = neutral
+            1 = panic
+            2 = FAHHHH
+            3 = 67
+            */
+
+            function loop() {
+                tick();
+                render();
+                requestAnimationFrame(loop);
+            }
+
+            function tick() {
+                // Apply friction
+                if (Math.abs(player.velX) > 0) player.velX *= DRAG;
+                
+                // Apply gravity
+                player.velY = Math.min(player.velY + GRAVITY, 32);
+
+                player.grounded = false;
+
+                // Apply horizontal controls
+                if (controller.right) {
+                    player.velX = ACCELERATION;
+                } else if (controller.left) {
+                    player.velX = -ACCELERATION;
+                }
+                
+                // Update X position based on horizontal velocity
+                player.x += player.velX;
+
+                // Horizontal collision check
+                for (const t of tiles) {
+                    // Only check for solid blocks
+                    if (t.type === 1 || t.type == 2) {
+                    // Create a temporary rectangle for the player's future position
+                    // The extra 1 pixel padding ensures it doesn't clip when moving very slowly
+                    if (collision(t.x, t.y, TILE_SIZE, TILE_SIZE, player.x, player.y, player.width, player.height)) {  
+                        if(t.type === 1) {
+                            if (player.velX > 0) { // Moving right
+                                player.x = t.x - player.width;
+                            } else if (player.velX < 0) { // Moving left
+                                player.x = t.x + TILE_SIZE;
+                            }
+                            player.velX = 0; // Stop horizontal movement
+                        }
+                        
+                        if(t.type === 2) {
+                            chatState = 4;
+                            stateTimer = 500;
+                        }
+                    }
+                    }
+                }
+
+                // Update Y position based on vertical velocity
+                player.y += player.velY;
+
+                // Vertical collision check
+                for (const t of tiles) {
+                    if (t.type === 1) {
+                    if (collision(t.x, t.y, TILE_SIZE, TILE_SIZE, player.x, player.y, player.width, player.height)) {
+                        if (player.velY > 0) { // Falling (down)
+                        player.y = t.y - player.height;
+                        player.grounded = true;
+                        } else if (player.velY < 0) { // Jumping (up)
+                        player.y = t.y + TILE_SIZE;
+                        }
+                        player.velY = 0; // Stop vertical movement
+                    }
+                    }
+                }
+
+                //Camera
+                camera.targetX = player.x;
+                camera.targetY = player.y;
+
+                camera.velX = 0;
+                camera.velY = 0;
+
+                let centerX = (camera.screenWidth / 2) - (player.width / 2) - player.x;
+                let centerY = (camera.screenHeight / 2) - (player.height / 2) - player.y;
+
+                let cDx = Math.abs(camera.x - centerX);
+                let cDy = Math.abs(camera.y - centerY);
+
+
+                if(cDx > 5) {
+                    if(centerX > camera.x) {
+                        camera.velX = 5;
+                    }else if(centerX < camera.x) {
+                        camera.velX = -5;
+                    }
+                }
+                if(cDy > 5) {
+                    if(centerY > camera.y) {
+                        camera.velY = 5;
+                    }else if(centerY < camera.y) {
+                        camera.velY = -5;
+                    }
+                }
+
+                if(player.y > (map.length + 1) * TILE_SIZE) {
+                    player.y = 0;
+                    player.x = 0;
+                    chatState = 1; //Panic
+                    stateTimer = 500;
+                }
+
+                //Chat
+
+                if(stateTimer > 0) stateTimer--;
+                else chatState = 0;
+                if(rand(25) == 0) {
+                    let message = generateMessage(chatState);
+                }
+
+                if(rand(10000) == 0) {
+                    chatState = rand(2) + 2;
+                    stateTimer = 500;
+                }
+
+                camera.x += camera.velX;
+                camera.y += camera.velY;
+                // Apply jump command
+                if (controller.up && player.grounded) {
+                    player.velY = -30;
+                    player.grounded = false; // Player is no longer on the ground once they jump
+                }
+            }
+
+
+            function render() {
+                c.clearRect(0, 0, 800, 600);
+
+                for(const t of tiles) {
+                    c.fillStyle = t.type == 1 ? "black" : "white";
+                    c.fillRect(t.x + camera.x, t.y + camera.y, TILE_SIZE, TILE_SIZE);
+                }
+
+                c.fillStyle = "red";
+                c.fillRect(player.x + camera.x, player.y + camera.y, player.width, player.height);
+            }
+
+            addEventListener("keydown", function(e){ 
+                switch(e.key) {
+                    case "ArrowUp":
+                        controller.up = true;
+                        break;
+                    case "ArrowDown":
+                        controller.down = true;
+                        break;
+                    case "ArrowLeft":
+                        controller.left = true;
+                        break;
+                    case "ArrowRight":
+                        controller.right = true;
+                        break;
+                }
+            })
+
+            addEventListener("keyup", function(e){ 
+                switch(e.key) {
+                    case "ArrowUp":
+                        controller.up = false;
+                        break;
+                    case "ArrowDown":
+                        controller.down = false;
+                        break;
+                    case "ArrowLeft":
+                        controller.left = false;
+                        break;
+                    case "ArrowRight":
+                        controller.right = false;
+                        break;
+                }
+            })
+
+            function collision(x, y, w, h, x1, y1, w1, h1) {
+                return (
+                    x < x1 + w1 &&
+                    x + w > x1 &&
+                    y < y1 + h1 &&
+                    y + h > y1
+                );
+            }
+
+            const chatUsers = [
+                "Grandma",
+                "TheTickler",
+                "Yourechoppedunc",
+                "6767",
+                "redditor",
+                "discord_mod",
+                "ticklemytoes"
+            ]
+
+            const chatMessages = [
+                ["Unc is COOKING", "Hi youtube", "shoutout pls", "omg", "let's go he's back!!", "first", "goofy ahh game",
+                "I will donate for shoutout", "NAHHH", "YOU CAN DO IT", "pog", "You should play minecraft", "touch grass", "🥀",
+                "🥀🥀🥀🥀🥀🥀", "they wit da rat pack"
+                ],
+                ["NOOOO", "come on man", "you're trash unc", "NO", "first death guys?", "bro literally fell off 💀", "YOU'RE TRASH",
+                    "Bro actually lost", "AHHH"
+                ],
+                ["FAHHHHH", "fahhh", "fah", "FAAAAAAAHHHHHH", "faaaah"],
+                ["67", "67676767", "6 7", "666666666677777777", "UNC SAY 6 7"],
+                ["SECRET???", "WE FOUND A SECRET", "YEAHH SECRET", "I was here", "yay secret"]
+            ]
+
+            function generateMessage(event = 0) {
+                let user = chatUsers[rand(chatUsers.length)];
+                let message = chatMessages[event][rand(chatMessages[event].length)];
+
+                sendChatMessage(user, message);
+            }
+
+            function sendChatMessage(user, message) {
+                let messageDiv = document.createElement("div");
+                messageDiv.classList.add("message");
+                messageDiv.innerText = `${user}: ${message}`;
+
+                chat.appendChild(messageDiv);
+                chat.scrollTop = chat.scrollHeight;
+            }
+
+            function rand(max) {
+                return Math.floor(Math.random() * max);
+            }
+
+            loop();
+        </script>
+    </body>
+</html>
